@@ -10,6 +10,7 @@
 
 static void* threadentry(void*);
 static void (*setg_gcc)(void*);
+int x_cgo_set_tls(unsigned long addr);
 
 void
 x_cgo_init(G *g, void (*setg)(void*))
@@ -63,8 +64,39 @@ threadentry(void *v)
 	/*
 	 * Set specific keys.
 	 */
+	x_cgo_set_tls((unsigned long)(ts.tls));
 	setg_gcc((void*)ts.g);
 
 	crosscall_amd64(ts.fn);
 	return nil;
+}
+
+pthread_key_t tls_key;
+pthread_once_t key_once = PTHREAD_ONCE_INIT;
+
+void _key_init()
+{
+    pthread_key_create(&tls_key, NULL);
+}
+
+void key_init()
+{
+    pthread_once(&key_once, _key_init);
+}
+
+int x_cgo_set_tls(unsigned long addr)
+{
+    key_init();
+    unsigned long* _addr = malloc(sizeof(unsigned long));
+    *_addr = addr;
+    pthread_setspecific(tls_key, _addr);
+    return 0;
+}
+
+unsigned long x_cgo_get_tls()
+{
+    unsigned long *_addr = pthread_getspecific(tls_key);
+    if(_addr == 0)
+        return 0;
+    return *_addr;
 }

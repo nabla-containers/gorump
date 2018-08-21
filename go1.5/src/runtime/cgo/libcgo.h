@@ -84,3 +84,6 @@ void darwin_arm_init_thread_exception_port(void);
  * Starts a mach message server processing EXC_BAD_ACCESS.
  */
 void darwin_arm_init_mach_exception_handler(void);
+
+extern unsigned long _cgo_get_tls(void);
+extern void _cgo_set_tls(void);

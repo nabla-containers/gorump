@@ -2,7 +2,7 @@
 
 package runtime
 
-const defaultGoroot = `/home/eyberg/go/src/github.com/deferpanic/gorump/go`
+const defaultGoroot = `/root/unikernels/golang-on-rumprun/gorump-notls/go`
 const theVersion = `go1.5.1`
 const goexperiment = ``
 const stackGuardMultiplier = 1

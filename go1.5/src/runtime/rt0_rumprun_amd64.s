@@ -36,3 +36,7 @@ TEXT _rt0_amd64_rumprun_lib_go(SB),NOSPLIT,$0
 TEXT main(SB),NOSPLIT,$-8
 	MOVQ	$runtime·rt0_go(SB), AX
 	JMP	AX
+
+DATA runtime·isrumprun(SB)/4, $1
+GLOBL runtime·isrumprun(SB), NOPTR, $4
+

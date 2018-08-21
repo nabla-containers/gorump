@@ -4,7 +4,7 @@ package obj
 
 import "runtime"
 
-const defaultGOROOT = `/home/eyberg/go/src/github.com/deferpanic/gorump/go`
+const defaultGOROOT = `/root/unikernels/golang-on-rumprun/gorump-notls/go`
 const defaultGO386 = `sse2`
 const defaultGOARM = `5`
 const defaultGOOS = runtime.GOOS

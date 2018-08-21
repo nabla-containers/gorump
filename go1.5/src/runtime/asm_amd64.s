@@ -65,6 +65,8 @@ nocpuinfo:
 	MOVQ	AX, g_stackguard0(CX)
 	MOVQ	AX, g_stackguard1(CX)
 
+	CMPL	runtime·isrumprun(SB), $1
+	JEQ needtls
 	CMPL	runtime·iswindows(SB), $0
 	JEQ ok
 needtls:
@@ -217,8 +219,9 @@ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 
 // func systemstack(fn func())
 TEXT runtime·systemstack(SB), NOSPLIT, $0-8
-	MOVQ	fn+0(FP), DI	// DI = fn
+	MOVQ	fn+0(FP), R8
 	get_tls(CX)
+	MOVQ	R8, DI
 	MOVQ	g(CX), AX	// AX = g
 	MOVQ	g_m(AX), BX	// BX = m
 
@@ -730,6 +733,11 @@ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
 	CMPQ	CX, $0
 	JEQ	2(PC)
 #endif
+#ifdef GOOS_rumprun
+	MOVL	$0, BX
+	CMPQ	CX, $0
+	JEQ	2(PC)
+#endif
 	MOVQ	g(CX), BX
 	CMPQ	BX, $0
 	JEQ	needm
@@ -850,14 +858,26 @@ settls:
 	LEAQ	m_tls(AX), AX
 	MOVQ	AX, 0x28(GS)
 #endif
+#ifdef GOOS_rumprun
+	CMPQ	BX, $0
+	JNE	settls
+	MOVQ	$0, DI
+	CALL	runtime·settls(SB)
+	RET
+settls:
+	MOVQ	g_m(BX), AX
+	LEAQ	m_tls(AX), AX
+	MOVQ	AX, DI
+	CALL	runtime·settls(SB)
+#endif
 	get_tls(CX)
 	MOVQ	BX, g(CX)
 	RET
 
 // void setg_gcc(G*); set g called from gcc.
 TEXT setg_gcc<>(SB),NOSPLIT,$0
-	get_tls(AX)
-	MOVQ	DI, g(AX)
+	get_tls(CX)
+	MOVQ	DI, g(CX)
 	RET
 
 // check that SP is in range [g->stack.lo, g->stack.hi)

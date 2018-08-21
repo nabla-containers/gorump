@@ -78,6 +78,18 @@ var _cgo_thread_start = &x_cgo_thread_start
 var x_cgo_sys_thread_create byte
 var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 
+//go:cgo_import_static x_cgo_get_tls
+//go:linkname x_cgo_get_tls x_cgo_get_tls
+//go:linkname _cgo_get_tls _cgo_get_tls
+var x_cgo_get_tls byte
+var _cgo_get_tls = &x_cgo_get_tls
+
+//go:cgo_import_static x_cgo_set_tls
+//go:linkname x_cgo_set_tls x_cgo_set_tls
+//go:linkname _cgo_set_tls _cgo_set_tls
+var x_cgo_set_tls byte
+var _cgo_set_tls = &x_cgo_set_tls
+
 // Notifies that the runtime has been intialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)

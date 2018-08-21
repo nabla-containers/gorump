@@ -132,19 +132,67 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		// TODO(rsc): Remove the Hsolaris special case. It exists only to
 		// guarantee we are producing byte-identical binaries as before this code.
 		// But it should be unnecessary.
-		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 && ctxt.Headtype != obj.Hsolaris {
-			obj.Nopout(p)
-		}
-		if p.From.Type == obj.TYPE_MEM && p.From.Index == REG_TLS && REG_AX <= p.From.Reg && p.From.Reg <= REG_R15 {
-			p.From.Reg = REG_TLS
-			p.From.Scale = 0
-			p.From.Index = REG_NONE
-		}
+		if(ctxt.Headtype == obj.Hnetbsd){        // hack for rumprun
+			// control comes here in rumprun case; from getg()
+			// modify MOVQ TLS, CX to call runtime.gettls
+			if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS {
+				obj.Nopout(p)
+			}
+			if p.From.Type == obj.TYPE_MEM && p.From.Index == REG_TLS {
+				var progedit_tlsfallback *obj.LSym
+				progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.gettls", 0)
 
-		if p.To.Type == obj.TYPE_MEM && p.To.Index == REG_TLS && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
-			p.To.Reg = REG_TLS
-			p.To.Scale = 0
-			p.To.Index = REG_NONE
+				target_reg := p.To.Reg
+
+				if target_reg != REG_AX {
+					//save AX
+					p.As = APUSHQ
+					p.From.Type = obj.TYPE_REG
+					p.From.Reg = REG_AX
+					p.To.Type = obj.TYPE_NONE
+					p = obj.Appendp(ctxt, p)
+				}
+
+				// call runtime.gettls
+				// rewriting not creating new. So no:  p = obj.Appendp(ctxt, p)
+				p.As = obj.ACALL
+				p.To.Type = obj.TYPE_BRANCH
+				p.To.Sym = progedit_tlsfallback
+				p.To.Offset = 0
+				p.From.Type = obj.TYPE_NONE
+
+				//move (rax) to org p.To.Reg
+				p = obj.Appendp(ctxt, p)
+				p.As = AMOVQ
+				p.From.Type = obj.TYPE_MEM
+				p.From.Offset = 0
+				p.From.Reg = REG_AX
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = target_reg
+
+				if target_reg != REG_AX {
+					//restore AX
+					p = obj.Appendp(ctxt, p)
+					p.As = APOPQ
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REG_AX
+				}
+			}
+		} else {
+			if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 && ctxt.Headtype != obj.Hsolaris {
+				obj.Nopout(p)
+			}
+			if p.From.Type == obj.TYPE_MEM && p.From.Index == REG_TLS && REG_AX <= p.From.Reg && p.From.Reg <= REG_R15 {
+				p.From.Reg = REG_TLS
+				p.From.Scale = 0
+				p.From.Index = REG_NONE
+			}
+
+			if p.To.Type == obj.TYPE_MEM && p.To.Index == REG_TLS && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
+				p.To.Reg = REG_TLS
+				p.To.Scale = 0
+				p.To.Index = REG_NONE
+			}
 		}
 	} else {
 		// load_g_cx, below, always inserts the 1-instruction sequence. Rewrite it
@@ -153,6 +201,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		// becomes
 		//	MOVQ TLS, BX
 		//	MOVQ 0(BX)(TLS*1), BX
+
+		if(ctxt.Headtype == obj.Hnetbsd){        // hack for rumprun; 
+			print("************************\n")
+			// verified control does not come here for rumprun coz load_g_cx has been modified for rumprun
+		}
+
 		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
 			q := obj.Appendp(ctxt, p)
 			q.As = p.As
@@ -494,7 +548,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {
 		p = obj.Appendp(ctxt, p)
-		p = load_g_cx(ctxt, p) // load g into CX
+		if(ctxt.Headtype == obj.Hnetbsd){        // hack for rumprun
+			p = load_g_cx_notls(ctxt, p) // load g into CX
+		} else {
+			p = load_g_cx(ctxt, p) // load g into CX
+		}
 	}
 
 	if cursym.Text.From3Offset()&obj.NOSPLIT == 0 {
@@ -834,6 +892,52 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 	p.From.Offset = 0
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_CX
+
+	next := p.Link
+	progedit(ctxt, p)
+	for p.Link != next {
+		p = p.Link
+	}
+
+	if p.From.Index == REG_TLS {
+		p.From.Scale = 2
+	}
+
+	return p
+}
+
+func load_g_cx_notls(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
+	var progedit_tlsfallback *obj.LSym
+	progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.gettls", 0)
+
+	//save AX
+	p.As = APUSHQ
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = REG_AX
+
+	// call runtime.gettls
+	// rewriting not creating new. So no:  p = obj.Appendp(ctxt, p)
+	p = obj.Appendp(ctxt, p)
+	p.As = obj.ACALL
+	p.To.Type = obj.TYPE_BRANCH
+	p.To.Sym = progedit_tlsfallback
+	p.To.Offset = 0
+
+	//move (rax) to rcx
+	p = obj.Appendp(ctxt, p)
+	p.As = AMOVQ
+	p.From.Type = obj.TYPE_MEM
+	p.From.Offset = 0
+	p.From.Reg = REG_AX
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = REG_CX
+
+	//restore AX
+	p = obj.Appendp(ctxt, p)
+	p.As = APOPQ
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = REG_AX
+
 
 	next := p.Link
 	progedit(ctxt, p)

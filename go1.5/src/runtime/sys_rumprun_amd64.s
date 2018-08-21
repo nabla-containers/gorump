@@ -38,8 +38,6 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$0
 
 // XXXTODO
 TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
-	SYSCALL				// XXX: instant trap
-	
 	// Set FS to point at m->tls.
 	LEAQ	m_tls(R8), DI
 	CALL	runtime·settls(SB)
@@ -274,16 +272,86 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	RET
 
 // set tls base to DI
-// XXXTODO
 TEXT runtime·settls(SB),NOSPLIT,$8
-	SYSCALL				// XXX: instant trap
+        // Save caller-saved registers
+        PUSHQ   SP
+        PUSHQ   AX
+        PUSHQ   CX
+        PUSHQ   DX
+        PUSHQ   DI
+        PUSHQ   SI
+        PUSHQ   R8
+        PUSHQ   R9
+        PUSHQ   R10
+        PUSHQ   R11
+        // Save callee-saved registers
+        PUSHQ   BX
+        PUSHQ   BP
+        PUSHQ   R12
+        PUSHQ   R13
+        PUSHQ   R14
+        PUSHQ   R15
+	LEAQ	x_cgo_set_tls(SB), AX
+	CALL	AX
+	// MOVQ	AX, ret+8(FP)
+        // Restore callee-saved registers
+        POPQ    R15
+        POPQ    R14
+        POPQ    R13
+        POPQ    R12
+        POPQ    BP
+        POPQ    BX
+        // Restore caller-saved registers
+        POPQ    R11
+        POPQ    R10
+        POPQ    R9
+        POPQ    R8
+        POPQ    SI
+        POPQ    DI
+        POPQ    DX
+        POPQ    CX
+        POPQ    AX
+        POPQ    SP
+	RET
 
-	// adjust for ELF: wants to use -8(FS) for g
-	ADDQ	$8, DI			// arg 1 - ptr
-	MOVQ	$317, AX		// sys__lwp_setprivate
-	SYSCALL
-	JCC	2(PC)
-	MOVL	$0xf1, 0xf1		// crash
+// tls addr is in rax after this call
+TEXT runtime·gettls(SB),NOSPLIT,$0
+        // Save caller-saved registers, except AX
+        PUSHQ   SP
+        PUSHQ   CX
+        PUSHQ   DX
+        PUSHQ   DI
+        PUSHQ   SI
+        PUSHQ   R8
+        PUSHQ   R9
+        PUSHQ   R10
+        PUSHQ   R11
+        // Save callee-saved registers
+        PUSHQ   BX
+        PUSHQ   BP
+        PUSHQ   R12
+        PUSHQ   R13
+        PUSHQ   R14
+        PUSHQ   R15
+	LEAQ	x_cgo_get_tls(SB), AX
+	CALL	AX
+        // Restore callee-saved registers
+        POPQ    R15
+        POPQ    R14
+        POPQ    R13
+        POPQ    R12
+        POPQ    BP
+        POPQ    BX
+        // Restore caller-saved registers, except AX
+        POPQ    R11
+        POPQ    R10
+        POPQ    R9
+        POPQ    R8
+        POPQ    SI
+        POPQ    DI
+        POPQ    DX
+        POPQ    CX
+        POPQ    SP
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$16

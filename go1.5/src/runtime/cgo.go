@@ -16,6 +16,8 @@ import "unsafe"
 //go:linkname _cgo_thread_start _cgo_thread_start
 //go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
 //go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+//go:linkname _cgo_get_tls _cgo_get_tls
+//go:linkname _cgo_set_tls _cgo_set_tls
 
 var (
 	_cgo_init                     unsafe.Pointer
@@ -24,6 +26,8 @@ var (
 	_cgo_thread_start             unsafe.Pointer
 	_cgo_sys_thread_create        unsafe.Pointer
 	_cgo_notify_runtime_init_done unsafe.Pointer
+	_cgo_get_tls                  unsafe.Pointer
+	_cgo_set_tls                  unsafe.Pointer
 )
 
 // iscgo is set to true by the runtime/cgo package
