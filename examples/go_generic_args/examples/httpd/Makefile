@@ -1,24 +1,30 @@
-seccomp: goprog.seccomp
+include ${RUMPRUN_MKCONF}
+
+spt: goprog.spt
+
+ifeq ($(RUMPRUN_CC),)
+$(error Please run: source rumprun/obj/config)
+endif
 
 setup: 
 	cp ../../main.c .
 	cp ../../gomaincaller.go .
 
 goprog.a: $(wildcard *.go)
-	CC=x86_64-rumprun-netbsd-gcc CGO_ENABLED=1 GOOS=rumprun ../../go build -buildmode=c-archive -v -a -x -o goprog.a *.go
+	CC=${RUMPRUN_CC} CGO_ENABLED=1 GOOS=rumprun ../../../../go1.5/bin/go build -buildmode=c-archive -v -a -x -o goprog.a *.go
 
 goprog.pseudo: goprog.a
-	RUMPRUN_STUBLINK=succeed x86_64-rumprun-netbsd-gcc -g -o goprog.pseudo main.c goprog.a
+	RUMPRUN_STUBLINK=succeed ${RUMPRUN_CC} -g -o goprog.pseudo main.c goprog.a
 
-goprog.seccomp: setup goprog.pseudo
-	rumprun-bake solo5_ukvm_seccomp goprog.seccomp goprog.pseudo
+goprog.spt: setup goprog.pseudo
+	${RUMPRUN_BAKE} solo5_spt goprog.spt goprog.pseudo
 
 %.bin: %.pseudo
 	rumprun-bake hw_virtio $@ $<
 
 .PHONY: run
-run: goprog.seccomp
-	../../ukvm-bin  --disk=../../x --net=tap100 ./goprog.seccomp '{"cmdline":"./goprog.seccomp a 1 2 3 4", "net":{"if":"ukvmif0","cloner":"True","type":"inet","method":"static","addr":"10.0.0.2","mask":"16"}}'
+run: goprog.spt
+	${SOLO5SRC}/tenders/spt/solo5-spt --net=tap100 $< '{"cmdline":"$< a 1 2 3 4", "net":{"if":"ukvmif0","cloner":"True","type":"inet","method":"static","addr":"10.0.0.2","mask":"16"}}'
     
 clean:
-	rm -f goprog.a goprog.h goprog.seccomp goprog.pseudo main.c gomaincaller.go 
+	rm -f goprog.a goprog.h goprog.spt goprog.pseudo main.c gomaincaller.go 
