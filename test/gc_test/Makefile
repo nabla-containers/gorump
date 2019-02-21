@@ -2,16 +2,19 @@ all: hello.bin
 xen: hello-xen.bin
 
 %.a: %.go
-	CC=x86_64-rumprun-netbsd-gcc CGO_ENABLED=1 GOOS=rumprun ../../go1.5/bin/go build -buildmode=c-archive -v -a -x $<
+	CC=${RUMPRUN_CC} CGO_ENABLED=1 GOOS=rumprun ../../go1.5/bin/go build -buildmode=c-archive -v -a -x $<
 
 %.pseudo: %.a
-	RUMPRUN_STUBLINK=succeed x86_64-rumprun-netbsd-gcc -g -o $@ $(basename $@).c $<
+	RUMPRUN_STUBLINK=succeed ${RUMPRUN_CC} -g -o $@ $(basename $@).c $<
 
 %.bin: %.pseudo
-	rumprun-bake hw_virtio $@ $<
+	${RUMPRUN_BAKE} hw_virtio $@ $<
+
+%.spt: %.pseudo
+	${RUMPRUN_BAKE} solo5_spt $@ $<
 
 %-xen.bin: %.pseudo
-	rumprun-bake xen_pv $@ $<
+	${RUMPRUN_BAKE} xen_pv $@ $<
 
 clean:
-	rm -f hello*.a hello*.h hello hello-xen hello*.bin 
+	rm -f hello*.a hello*.h hello hello-xen hello*.bin *.spt
