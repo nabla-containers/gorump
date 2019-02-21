@@ -10,6 +10,9 @@ xen: hello-xen.bin
 %.bin: %.pseudo
 	rumprun-bake hw_virtio $@ $<
 
+%.spt: %.pseudo
+	rumprun-bake solo5_spt $@ $<
+
 %-xen.bin: %.pseudo
 	rumprun-bake xen_pv $@ $<
 

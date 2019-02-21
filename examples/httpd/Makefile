@@ -1,5 +1,7 @@
 all: httpd.bin
 xen: httpd-xen.bin
+spt: httpd.spt
+hvt: httpd.hvt
 
 %.a: %.go
 	CC=x86_64-rumprun-netbsd-gcc CGO_ENABLED=1 GOOS=rumprun ../../go/bin/go build -buildmode=c-archive -v -a -x $<
@@ -12,6 +14,12 @@ xen: httpd-xen.bin
 
 %-xen.bin: %.pseudo
 	rumprun-bake xen_pv $@ $<
+
+%.spt: %.pseudo
+	rumprun-bake solo5_spt $@ $<
+
+%.hvt: %.pseudo
+	rumprun-bake solo5_hvt $@ $<
 
 clean:
 	rm -f httpd*.a httpd*.h httpd httpd-xen httpd*.bin
