@@ -19,7 +19,6 @@ SHELL := /bin/bash
 export TOP=$(abspath .)
 all: gorump_stamp
 
-RUMPRUN=$(TOP)/rumprun
 GORUMP=$(TOP)
 GOBASE=$(TOP)
 GOBOOTSTRAP=$(TOP)/gobootstrap
@@ -37,12 +36,12 @@ gobootstrap_stamp:
 	touch $@
 
 gorump_stamp: gobootstrap_stamp
-	source $(RUMPRUN)/obj/config-PATH.sh && cd $(GORUMP)/go/src && CGO_ENABLED=0 GOROOT_BOOTSTRAP=$(GOBOOTSTRAP) GOOS=rumprun GOARCH=amd64 ./make.bash && cd $(GOBASE)
+	cd $(GORUMP)/go/src && CGO_ENABLED=0 GOROOT_BOOTSTRAP=$(GOBOOTSTRAP) GOOS=rumprun GOARCH=amd64 ./make.bash && cd $(GOBASE)
 	cp -r $(GORUMP)/go1.5 gorump
 	cp $(GORUMP)/go1.5/bin/go go
 	touch $@
 
 clean:
-	rm -rf gobootstrap gorump rumprun-solo5
+	rm -rf gobootstrap gorump rumprun-solo5 *_stamp
 
 distclean: clean rumprun-clean

@@ -1,6 +1,6 @@
 dist: xenial
 sudo: required
-language: go
+language: c
 compiler:
   - gcc
 addons:
@@ -19,13 +19,16 @@ before_script:
   - sudo apt-get update -y
   - sudo apt-get install qemu-kvm libseccomp-dev bats sudo iproute2 wget -y
   - sudo apt-get install --only-upgrade binutils gcc -y
+  - git clone https://github.com/nabla-containers/rumprun
+  - export CC=gcc-6
+  - export CXX=g++-6
+  - (cd rumprun && bash travis_wait.sh 60 git submodule update --init)
+  - (cd rumprun && ./build-rr.sh -o obj -j16 -qq ${PLATFORM})
 
 script:
   - export CC=gcc-6
   - export CXX=g++-6
-  - git clone https://github.com/nabla-containers/rumprun
-  - (cd rumprun && bash travis_wait.sh 60 git submodule update --init)
-  - (cd rumprun && ./build-rr.sh-o obj -j16 -qq ${PLATFORM})
-  - make gorump_stamp
-  - (. rumprun/obj/config && cd test/gc_test && make hello.spt)
-  - (. rumprun/obj/config && cd test/gc_test && bash verify_gc_spt.sh)
+  - (. $TRAVIS_BUILD_DIR/rumprun/obj/config && make gorump_stamp)
+  - export GOROOT=$TRAVIS_BUILD_DIR/go
+  - (. $TRAVIS_BUILD_DIR/rumprun/obj/config && cd test/gc_test && GOROOT=$TRAVIS_BUILD_DIR/go make hello.spt)
+  - (. $TRAVIS_BUILD_DIR/rumprun/obj/config && cd test/gc_test && bash verify_gc_spt.sh)
